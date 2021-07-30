@@ -2,14 +2,15 @@
 @model Web.Pages.hands_on.IndexModel
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Azureハンズオン";
 }
 
-<h1>Index</h1>
+<h1>@ViewData["Title"]</h1>
 
 <p>
     <a asp-page="Create">Create New</a>
 </p>
+<p>LINEメッセージがここに表示されるよ</p>
 <table class="table">
     <thead>
         <tr>
