@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using System.Data.SqlClient;
+using ApplicationCore.Entities;
 
 namespace Functions
 {
@@ -20,6 +22,7 @@ namespace Functions
     {
         private readonly IHttpClientFactory httpClientFactory;
         private readonly string accessToken;
+        private readonly string sqldbConnection;
 
         public Webhook(
             IHttpClientFactory httpClientFactory,
@@ -27,6 +30,7 @@ namespace Functions
         {
             this.httpClientFactory = httpClientFactory;
             accessToken = configuration.GetValue<string>("LINE_CHANNEL_ACCESS_TOKEN");
+            sqldbConnection = configuration.GetValue<string>("SQLDB_CONNECTION");
         }
 
         [FunctionName("Webhook")]
@@ -56,8 +60,12 @@ namespace Functions
                 return null;
             }
 
-            // オウム返しする
-            await Reply(firstEvent.ReplyToken, firstEvent.Message.Text);
+            // DBからメッセージデータを取得
+            var message = GetMessage();
+
+            // DBからメッセージデータが取得できれば取得したテキストを返信、なければオウム返し
+            var text = message?.Text ?? firstEvent.Message.Text;
+            await Reply(firstEvent.ReplyToken, text);
 
             return new OkResult();
         }
@@ -81,6 +89,42 @@ namespace Functions
             var client = httpClientFactory.CreateClient("line");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
             await client.PostAsync("/v2/bot/message/reply", content);
+        }
+
+        /// <summary>
+        /// DBからメッセージデータを取得
+        /// </summary>
+        /// <returns>取得したメッセージデータ</returns>
+        private Message GetMessage()
+        {
+            var message = default(Message);
+            using (var connection = new SqlConnection(sqldbConnection))
+            {
+                connection.Open();
+                using (var command = connection.CreateCommand())
+                {
+                    // 1件のみ取得
+                    command.CommandText = "SELECT TOP 1 * FROM Messages;";
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            message = new Message
+                            {
+                                Id = reader["Id"] as Guid? ?? Guid.Empty,
+                                Text = reader["Text"] as string,
+                            };
+                        }
+                    }
+                }
+            }
+
+            if (message == null || message.Id == Guid.Empty)
+            {
+                return null;
+            }
+
+            return message;
         }
     }
 }
