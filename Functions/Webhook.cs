@@ -104,7 +104,7 @@ namespace Functions
                 using (var command = connection.CreateCommand())
                 {
                     // 1件のみ取得
-                    command.CommandText = "SELECT TOP 1 * FROM Messages;";
+                    command.CommandText = "SELECT TOP 1 * FROM Message;";
                     using (var reader = command.ExecuteReader())
                     {
                         if (reader.Read())
